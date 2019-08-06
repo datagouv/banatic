@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const {createReadStream} = require('fs')
+const {createGunzip} = require('zlib')
 const bluebird = require('bluebird')
 const got = require('got')
 const departements = require('@etalab/decoupage-administratif/data/departements.json')
@@ -9,12 +11,27 @@ const csvParser = require('csv-parser')
 const {flatten, chain} = require('lodash')
 const {outputJson} = require('fs-extra')
 const Keyv = require('keyv')
+const stripBomStream = require('strip-bom-stream')
 
 const cache = new Keyv('sqlite://.cache.sqlite')
 
 const DATE = '01/07/2019'
 const HEADERS_COUNT = 145
 const MI_BANATIC_API_URL = 'https://www.banatic.interieur.gouv.fr/V5/fichiers-en-telechargement/telecharger.php'
+
+async function loadSirenInseeMapping() {
+  const rows = await getStream(pumpify(
+    createReadStream('data/correspondance-siren-insee-2019.csv.gz'),
+    createGunzip(),
+    stripBomStream(),
+    csvParser({separator: ';'})
+  ))
+
+  return rows.reduce((mapping, row) => {
+    mapping[row.siren] = row.insee
+    return mapping
+  }, {})
+}
 
 async function fetchRawData() {
   return flatten(await bluebird.mapSeries(departements, async departement => {
@@ -75,7 +92,9 @@ function asString(value) {
 }
 
 async function main() {
+  const sirenInseeMapping = await loadSirenInseeMapping()
   const rows = await fetchRawData()
+
   const groupements = chain(rows)
     .filter(row => {
       const isValid = Object.keys(row).length === HEADERS_COUNT
@@ -114,15 +133,26 @@ async function main() {
           competences: asCompetences(gr),
 
           membres: chain(membresRows).uniqBy('Siren membre').map(mr => {
-            return {
+            const type = asEnum(mr.Type, {
+              Commune: 'commune',
+              Groupement: 'groupement',
+              'Autre organisme': 'autre'
+            })
+
+            const membre = {
               siren: mr['Siren membre'],
               nom: mr['Nom membre'],
-              type: asEnum(mr.Type, {
-                Commune: 'commune',
-                Groupement: 'groupement',
-                'Autre organisme': 'autre'
-              })
+              type
             }
+
+            if (type === 'commune') {
+              membre.code = sirenInseeMapping[membre.siren]
+              if (!membre.code) {
+                console.log(`Correspondance SIRENE <=> COG non trouvée pour la commune ${membre.siren}`)
+              }
+            }
+
+            return membre
           }).value()
         }
 
