@@ -1,0 +1,38 @@
+{
+  "name": "@etalab/banatic",
+  "version": "0.0.0",
+  "description": "Version modernisée de la BANATIC",
+  "repository": "git@github.com:etalab/banatic.git",
+  "author": "Jérôme Desboeufs <jerome.desboeufs@data.gouv.fr>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": false,
+  "scripts": {
+    "build": "node build"
+  },
+  "dependencies": {
+    "@etalab/decoupage-administratif": "^0.6.2",
+    "@keyv/sqlite": "^2.0.1",
+    "bluebird": "^3.5.5",
+    "csv-parser": "^2.3.0",
+    "fs-extra": "^8.1.0",
+    "get-stream": "^5.1.0",
+    "got": "^9.6.0",
+    "into-stream": "^5.1.0",
+    "keyv": "^3.1.0",
+    "lodash": "^4.17.15",
+    "pumpify": "^2.0.0"
+  },
+  "devDependencies": {
+    "xo": "^0.24.0"
+  },
+  "xo": {
+    "semicolon": false,
+    "space": 2
+  },
+  "engines": {
+    "node": ">= 10"
+  }
+}
